@@ -1,0 +1,17 @@
+# docker started as a paas cloud called dotcloud
+# docker can mean:
+# - Docker Inc (company)
+# - docker - the container runtime application
+# - docker - the opensource project - "moby" -- github.com/moby/moby
+# 2 editions:
+#  - community - free and none of the below
+#  - enterprise - $$ inlcuding supplier, plugins and container scanning
+
+# use cases:
+# - dev/prd parity
+# - decouple infrastructure/envs from the application code
+# - code pipeline mgt
+# - app developer productivity (less time spent farting about with envs and configs thereof
+# - app isolation - apps run seperately from one another
+# - server consolidation - uses server resources more efficiently
+# - multi-tenancy (because apps/containers can run in isolation on the same server)

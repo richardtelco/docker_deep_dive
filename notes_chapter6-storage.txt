@@ -1,0 +1,154 @@
+# generally speaking, data in containers is by nature, ephemeral - stop the container then lose the data
+# However, data can be amde to be persistent by using Volumes, which are decoupled from containers
+# on linux systems (docker host), non-persistent data goes in:
+#    - /var/lib/docker/<STORAGE-DRIVER>/    # eg where storage driver might be "overlay2" if RHEL, "overlay2" or "aufs" in Ubuntu, "btrfs" in SUSE
+# Most basic way to get persistent data in a container is to:
+#   1. create the volume
+#   2. create the container
+#   3. mount the volume to a directory inside the container
+# we can now stop and even delete ("rm") containers and the volume will persist - they are "first class citizens" in docker
+# volumes are created locally on teh docker host by default and so uses teh "local driver". This can be adjusted if necessary
+# alternative/third party drivera can be used instead eg
+#   - block storage    - eg "GCP Persistent Disk", "GCP SSD", virtual disk - generally via a VM that is running an OS
+#   - file storage     - eg "GCP Filestore", "Azure Files", "Google Drive in Google Workspace" - uses protocols like NFS or SMB
+#   - object storage   - eg "GCP Cloud Storage", "Azure blob", Amazon S3
+# Volumes live by default on the docker host in:
+#    - /var/lib/docker/volumes/
+# Inside the contaienr, volumes might be mounted to various places that they'd be useful eg:
+#    - /bin             - for persistent binaries that might be required
+#    - /var/code/       - for the codebase you don't want changed when you delete, update image and redeploy the new version of the container complete with application
+#    - /dev/            - for devices you want to use (?) from teh container
+#    - /etc/            - for configuration files you might want to reference
+# 
+# Volume commands are accessed through "docker volume" - see what they are using "docker volume -h"
+#  we can see there are:
+#    - create           - create a volume
+#    - inspect          - Display info about a volume
+#    - ls               - list volumes
+#    - prune            - rm all unused local volumes
+#    - rm               - remove volume(s)
+# we can then get further help on these by something like "docker volume create --help"
+# so... create a volume like this:    # here we are grepping out relevant items from the json file that keeps this info
+docker volume create test-volume01
+docker volume inspect test-volume01 | grep Driver
+>  "Driver": "local",
+docker volume inspect test-volume01 | grep Mountpoint
+>  "Mountpoint": "/var/lib/docker/volumes/tets-volume01/_data",
+# BIND MOUNTS
+# there are 2 ways of creating bind mounts:
+#    1. using mount flag
+#    2. using volume flag
+# They each have different sytax but I'm nt sure why they both exist...?
+# 1. USING MOUNT FLAG - with "bind" mount
+docker container run -d     \
+--name container-01         \
+--mount type=bind,source=<SOURCE>,target=<TARGET>
+nginx
+# 2. USING VOLUME FLAG
+docker container run -d     \
+--name container-01         \
+--volume <SOURCE>:<TARGET> 
+nginx
+# when USING MOUNT FLAG (method 1.), we need ot create the target directory on the docker host first, otherwise we'll get an error when running the container eg
+mkdir /home/smarty/persistent_data
+docker container run -d name=container-smarty-01 --mount type=bind,source=/myapp/data,target=/home/smarty/persistent_data nginx
+# NOTE - bind mounts are NOT manged by the volume subcommand! so "docker volume ls" doesn't show anything here!
+# NOTE - you can see what you;ve done by doing "docker container inspect smarty-01" and looking at the "Mounts" section of the resulting json
+# now what we could do create a file on the docker host machine in the mounted directory
+touch /home/smarty/persistent_data/file1.txt
+# and then see it via the container by executing an ls command on that container
+docker container exec -it container-smarty-01 /bin/bash              ## using "-it" flat meansing we want an "interactive" use of a "tty"
+root@container:/# ls /myapp/data
+                > file1.txt                  ## we see the file there!             
+# when USING VOLUME FLAG (method 2.), we don't need to do a mkdir on teh docker host first, we do it all within the docker run command
+docker container run -d                                 \
+--name container-02                                     \
+--volume /home/smarty/more_persistent_data/:/myapp/     \     ## note docker creating "more_persistent_data" directory for me - I didn't need to create it earlier
+nginx
+# NOTE - bind mounts are useful for mounting config files because you can just restart the container to get the new configs...
+#   ... rather than defining the container image with the new configs
+# 
+# SOMEWHAT CONFUSINGLY.... we can also use the "--mount" flat to create a "type=volume" mount (rather than a "type-bind" mount)
+# This would be used if there was already an existing volume, possibly mounted to other containers, that you wanted to mount to a new container
+# 3. USING MOUNT FLAG - with "volume" mount
+docker volume create myvolume-01
+docker container run -d                                         \
+--name container-01                                             \
+--mount type=volume,source=myvolume-01,target=/myapp/data/      \       ## NOTE here instead of using a directory for <SOURCE> we can use the name of the volume "myvolume-01"
+nginx
+docker volume inspect myvolume-01 | grep Mountpoint
+> "Mountpoint": "/var/lib/docker/volumes/myvolume-01/_data", 
+# AND TO ADD TO THE COMPLICATION - we can use teh volume flag to mount the volume, but use the volume object with teh volume flag for <SOURCE> instead of a directory (which got created automatically)
+# example of USING VOLUME FLAG with volume as <SOURCE>
+docker volume create myvolume-02
+docker container run -d     \
+--name container-02         \
+--volume my-volume02:/myapp/data       # we could add the string ",readonly" to the end of this line to make the volume readonly from within the container
+nginx
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 

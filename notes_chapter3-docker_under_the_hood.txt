@@ -1,0 +1,203 @@
+## docker architecture:
+# client server arch
+# client talks to docker daemon
+# docker daemon handles building, running and distributing containers (heavy lifting stuff)
+# both client and server communicate using the REST API 
+#   either 
+#    - directly using UNIX sockets if on the same machine; or 
+#    - over the network interface if on differnt machines
+# "dockerd" is the docker daemon (persistent process) that listens to API requests and manages docker objects inlcuding:
+#    - images
+#    - containers
+#    - networks
+#    - volumes
+# "docker" is the docker client - the command we will be executing and sends instructions to the daemon
+# docker registry is the place where the docker images are stored. 
+#    It's mirrored to dockerhub by default in the same way git repos are mirrored to a remote gitserver - but ther eis one on the machine where docker is isntalled too
+#    docker ships with no images by default - you need ot download them form dockerhub (or some other registry) (and then it WILL!!)(eg "docker pull")
+
+#  client ---> daemon ---> local registry (?no) ---> remote registry (dockerhub) ---> local registry (image) ---> container engine (container)
+
+# docker objects:
+#   - images (read-only template with instructions for creating a docker container
+#      - images can be based on other images (or just directly on the kernel)
+#      - you can create your own images by writing a Dockerfile - or just download (pull) some from dockerhub / remote registry
+#   - containers (runnABLE instances of an image)
+#      - containers can be running or stopped
+#      - containers can be connected to other network(s)
+#      - containers can be connected to other (storage) volumes
+#      - containers (when running) can be used to create a new image based on its current state
+#      - isolated from one another - the elvel of isolation can be changed to some extent
+#   - services
+#      - scaling conatiners across multiple hosts (daemons) - which can work together as governed by a 'service' via each hosts own docker daemon instance using the API
+#      - docker swarm as 2 types of node
+#          - masters
+#          - workers
+#      - state based defined services (ie user defines the satte they want, a service works in the background to acheive it or work to get it back to that state - eg "up and running")
+#   - engine
+#      - libcontainer replaces LXC (docker 0.9)
+#      - Open Container Initiative
+#      - runc - implementation of the OCI "container-runtime-spec" 
+#          - a lightweight CLI wrapper for libcontainer
+#          - sole purpose is to create containers
+#      - containerd
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#

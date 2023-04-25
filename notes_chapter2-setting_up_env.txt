@@ -1,0 +1,32 @@
+# uninstall any previous versions of docker:
+sudo yum remove -y docker \
+  docker-client \
+  docker-client-latest \
+  docker-common \
+  docker-latest \
+  docker-latest-logrotate \
+  docker-logrotate \
+  docker-engine 
+
+# install some utilities that docker will rely on and we'll need:
+sudo yum install -y yum-utils device-mapper-persistent-data lvm2
+
+# set up docker repository (stable version) - note this requires teh use of yum configuration manager to handle this new internet based repo address to go to when required
+sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+
+# install docker community edition itself
+sudo yum -y install docker-ce --allowearasing
+# note that the --allowearsing flag was added after being prompted by cloud server OS following failure of command without that bit!
+
+# enable and then start docker
+sudo systemctl start docker && sudo systemctl enable docker
+
+# add cloud_user to the docker group so we can run commands as the cloud_user ratehr than sudo all the time
+sudo usermod -aG docker cloud_user
+
+# need to logout and log back in to let permissions be applied
+# test with either 
+docker version
+# or look at the groups your current user (cloud_user) is in
+groups
+

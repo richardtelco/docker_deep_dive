@@ -1,0 +1,183 @@
+### docker commands
+# get help from docker - lists options followed by all teh commands
+docker -h
+# Note that docker commands have been "rolled up" into 'sections' of "Management Commands" - this is a structuring of the comands within docker as it has grown
+# eg the old "docker ps" which lists containers is now called "docker container ls"
+# Management commands are:
+#   - builder
+#   - config
+#   - checkpoint
+#   - container
+#   - engine
+#   - image
+#   - manifest  # manage docker image manifests and manifest links
+#   - network
+#   - node    # Swarm nodes
+#   - plugin
+#   - scan
+#   - secret    # Docker secrets
+#   - service
+#   - stack     # Docker stacks
+#   - swarm   # Swarm
+#   - system   # manages general Docker
+#   - trust
+#   - volume
+# The most commonly used are container, image, network, service, system, volume
+docker image -h
+# The above shows/lists the commands within the "image" management command
+   ls: lists images
+   pull: pulls an image or a repo to a registry
+   push: push an image or a repo to a registry
+   inspect: returns low level info on docker objects eg an image
+   import: imports the content from a tarball to create a filesystem image
+# the next line similarly tells us some of the main commands rolled up under the "container" management command
+   ls: lists containers
+   run: run a command in a new container
+   inspect: displays detailed information on one or more containers
+   top: displays teh running processes of a container (that is running... obviously)
+   restart: restart one or more containers
+   attach: attach local standard input, output and error streams to a running container
+   start: starts a stopped container (or muliple)
+   stop: Stops a running container (or mulitple)
+   logs: fetch the logs of the container
+   stats: display a live stream of container(s) resource usage statistics
+   exec: run a command in a running container (note common flags -it mean "interactive" and "with tty") - need to add container name/id and then the command you want to run
+   pause: pause all processes running on the container
+   unpause: unpauses all paused processes on the running container
+   rm: remove container(s) - not that they MUST be stopped in order to be removed. rm -f "forces" it to stop so that it can be removed...
+   export: export a containers filesystem as a tarball ("tape archive")
+   prune: remove all stopped containers
+# the next line gives the options available with the docker image ls command - remember the -h switch is for "help"
+docker image ls -h
+# NOTE that in some cases "-h" needs to be replaced by "--help" as the -h flag is used for something else on specific commands! BEWARE.
+# 
+### Creating containers
+# most of this section invovles "docker container run" - so maybe look at "docker container run --help" to check out much of what's being looked at here 
+docker container run --help
+    --rm   Automatically removes the container after it exists
+    -d, --detach: run teh container in the background and print the containerID  ## eg docker container run -d nginx 
+    -i, --interactive:  keep STDIN open even if not attached
+    -t, --tty:  Allocate pseudo-TTY
+    --name string: assign a name to the container
+    -p, --publish list: Publish a container's port(s) to the host
+    -P, --publish-all: Used to publish all exposed ports to random ports
+    -v, --volume list: Bind mount a volume 
+    -- expose <CONTAINERPORTNUMBER>: expose a port on the container that gets instantiated
+    --mount mount: Attach a filesystem mount to a container
+    --network string: Connect a container to a network (default "default")
+# example1: "docker container run --rm busybox" will automatically remove the container once its completed running
+# example2: "docker container run -it busybox" will run a container from the busybox image interactively and provide a TTY so STDIN, STOUT and STERR can be written/read
+# example3: "docker container run -d busybox" will run the container it creates from the image in 'detached' mode - ie in the background....
+# example4: "docker container run -d --name myContainer busybox" will call the container it creates from the busybox image "myContainer"...
+#
+### exposing Container Ports (and publishing them)
+# 'exposing' ports makes them "available to be mapped"
+# note that containers generally get their own private IP address granted by docker (?), usually in the range 172.16.0.0 - 172.31.255.255
+# teh following will expose (open) a port on the container so that if the host so chooses, it can direct traffic to it and the container will be listening on it
+docker container run --expose 8080 <IMAGE>     3 note <IMAGE> might be something like "nginx" image from dockerhub
+# at the same time it is also possible to map traffic to a host port onto the container port we just exposed, eg
+docker container run -d --expose 8080 -p 80:8080 nginx 
+# note that in the above line, we added the -d flag so that it deosn't run in the foreground making us unable to type until it shuts off - which it doesn't cos its running a webserver into perpetuity
+# note also that we've mapped traffic to port 80 on teh host machine to be redirected/broadcast(?) to port 8080 on the container
+# note also that we'd also now need to run the nginx webserver to listen and respond on port 8080. we haven't done this - it listnes only on port 80 by default!
+# next lets map traffic into the host on port 8080 to the nginx webserver (which is listening on port 80 when running...
+docker container run -d -p 8080:80 nginx
+curl localhost:8080 
+# This second command should yeild the default homepage from the nginx webserver
+
+# We can map tcp and udp traffic seperately if we want to - each needs its own seperate -d flag/switch
+docker container run -d -p 8081:80/tcp -d 8081:80/udp nginx
+# this was unnecessary in this case, but shows how to do them seperately should you need to do so
+# use -P flag to map a random port number to exposed ports
+docker container run -d -P nginx
+docker container ls
+# the above two lines will hsow a random port mapped to port 80 on the nginx conatienr, plus different ones mapped to any other exposed ports on that container
+docker container port <CONTAINERNAME>
+# this just shows us all the port mappings on the container
+
+### execute container commands
+# 3 ways:
+#     - in the Dockerfile
+#     - in docker run
+#     - using exec command
+
+# in the Dockerfile
+# Dockerfiles have "CMD" directorive at the bottom - that is the thing that runs when the container is run
+
+# in docker run
+# commands can be "one and done" quick commands (making the container more of a "task") or be long running commands
+docker container run -it nginx /bin/bash
+# this takes us to the bash shell from which we can run whatever we want 'interactively and with a TTY'!
+
+# using exec command (ie if the container is already running ,we can 'hop onto it' and get something else done
+# with exec command....they are always run in the default directory of the container.... unless built using the "working directory directive"...
+# also with the exec command - it will only run commands whilst the container's primary process is still running
+# can put the command at the end of the docker container exec eg
+docker container exec -it nginx cat /etc/hosts
+# alternatively we can specify that it run's /bin/bash - this will take us to the command prompt of the container and we can navigate to where we want to go to run the command
+# note that when we exit the container it won't stop it because this was just executing a comand on a running container - it wasn't a part of the run command
+#
+### container logging
+docker container logs <CONTAINERNAME>
+# this grabs logs of containers that are running "not as a service"..... OR (rarer case)
+docker service logs <SERVICENAME>
+# grabs logs from all containers in a service
+# logs need to be output to STDOUT and SRDERR 
+#
+# Common Commands:
+#  run         Create and run a new container from an image
+#  exec        Execute a command in a running container
+#  ps          List containers
+#  build       Build an image from a Dockerfile
+#  pull        Download an image from a registry
+#  push        Upload an image to a registry
+#  images      List images
+#  login       Log in to a registry
+#  logout      Log out from a registry
+#  search      Search Docker Hub for images
+#  version     Show the Docker version information
+#  info        Display system-wide information
+#  attach      Attach local standard input, output, and error streams to a running container
+#  commit      Create a new image from a container's changes
+#  cp          Copy files/folders between a container and the local filesystem
+#  create      Create a new container
+#  diff        Inspect changes to files or directories on a container's filesystem
+#  events      Get real time events from the server
+#  export      Export a container's filesystem as a tar archive
+#  history     Show the history of an image
+#  import      Import the contents from a tarball to create a filesystem image
+#  inspect     Return low-level information on Docker objects
+#  kill        Kill one or more running containers
+#  load        Load an image from a tar archive or STDIN
+#  logs        Fetch the logs of a container
+#  pause       Pause all processes within one or more containers
+#  port        List port mappings or a specific mapping for the container
+#  rename      Rename a container
+#  restart     Restart one or more containers
+#  rm          Remove one or more containers
+#  rmi         Remove one or more images
+#  save        Save one or more images to a tar archive (streamed to STDOUT by default)
+#  start       Start one or more stopped containers
+#  stats       Display a live stream of container(s) resource usage statistics
+#  stop        Stop one or more running containers
+#  tag         Create a tag TARGET_IMAGE that refers to SOURCE_IMAGE
+#  top         Display the running processes of a container
+#  unpause     Unpause all processes within one or more containers
+#  update      Update configuration of one or more containers
+#  wait        Block until one or more containers stop, then print their exit codes
+#
+# Global Options:
+#      --config string      Location of client config files (default "/home/cloud_user/.docker")
+#  -c, --context string     Name of the context to use to connect to the daemon (overrides DOCKER_HOST env var and default context set with "docker context use")
+#  -D, --debug              Enable debug mode
+#  -H, --host list          Daemon socket(s) to connect to
+#  -l, --log-level string   Set the logging level ("debug", "info", "warn", "error", "fatal") (default "info")
+#      --tls                Use TLS; implied by --tlsverify
+#      --tlscacert string   Trust certs signed only by this CA (default "/home/cloud_user/.docker/ca.pem")
+#      --tlscert string     Path to TLS certificate file (default "/home/cloud_user/.docker/cert.pem")
+#      --tlskey string      Path to TLS key file (default "/home/cloud_user/.docker/key.pem")
+#      --tlsverify          Use TLS and verify the remote
+#  -v, --version            Print version information and quit
+#
+# Run 'docker COMMAND --help' for more information on a command.
+#

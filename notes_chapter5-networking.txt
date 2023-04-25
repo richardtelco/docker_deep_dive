@@ -1,0 +1,172 @@
+# Docket networking 101
+#  1. CNM
+#  2. libnetwork implements the "Container Network Model" CNM - also does service discovery, load balancing, control plane functionality
+#  3. network drivers that implement network technologies exist:
+#     - bridge   # this is a link layer device that forwards traffic between network segments (it's the network that all containers on the docker host are put on by default - unless otherwise specified")
+#     - host
+#     - overlay  # for distributed networks
+#     - macvlan - can assign specific mac addresses to containers if you want to do that
+#     - none
+#     - Network plugins (3rd party stuff that can be built for use)
+# CNM
+#  - "sandboxes" - contains Network interfaces (NIC?), ports, Route Table, DNS
+#  - "endpoints" - these are virtual network interfaces
+#  - "Networks"  - software impl of the 802.1d bridge
+#  "sandboxes" connnect to "networks" through "endpoints". One endpoint can connect only one sandbox to one network. I think one container has only 1 "sandbox" 
+#  so if it wants to connect to multiple networks it needs multiple endpoints in its sandbox
+#
+# docker networking commands
+# first thing you should generally do is run ifconig on the docker host to list all the network adapters
+ifconfig
+# here you will see, apart frm the usual eth0, wlan and lo (loopback", the adapter called "docker0".
+# docker0 is set up when docker sintalls and in that process, it BINDs tself to both eth0 and loopback "lo"
+# notice it has an IP range assigned - usually a /16 (ie netmask 255.255.0.0) - this is where new containers get their IP from.
+# you can get a brief overview of the docker networking commands by running 
+docker network -h
+# this runs docker network "help"...
+docker network ls
+# this lists all the default networks that docker implements - do NOT delete any! 
+# generally "bridge", "host", "none"
+# lets look in more detail at the one called "bridge"
+docker network inspect bridge
+# this gives us all sorts of useful info inlcuding where it is bound to, what appears tin ifconfig ("docker0") ,the default gateway
+# ... now to create a network
+docker network create mynetwork01
+# normally we'd go and inspect that
+# deleting them can be doe with 2 main ways - direct delete or "prune" - which deletes everything with no containers connected to it
+docker network rm mynetwork01
+# OR....
+docker network prune       # NOTE this doesn't delete any of the important defalt ones
+# we can connect containers to networks using docker network connect....
+# 1. create a container
+# 2. create a network
+# 3. connect conatiner to network
+# ... so 1.
+docker container run -d --name mycontainer01 -p 8081:80 nginx
+# ... and 2. 
+docker network create mynetwork01
+# ... 3.
+docker network connect mynetwork01 mycontainer01
+# then look at BOTH "docker container inspect" in the network section or "docker network inspect" to see the containers on it. 
+# inspecting the container we will notice that the container is by default, also connected to the "bridge" network as well.
+# we can also create subnets on our network
+# assuming we already have a network called netwk01 and we want to add another network, mynetwk02 with a subnet on it
+docker network create --subnet 10.1.0.0/24 --gateway 10.1.0.1 netwk02     # remember a  /24 means 24 bits are "taken" leaving only 8 the last 8 of the 32 bits as spares for actual IP addresses on the subnet
+docker network ls
+NETWORKID    NAME         DRIVER        SCOPE
+347625412ce  netwk01      bridge        local
+293743042ad  netwk02      bridge        local
+             bridge       bridge        local
+             host         host          local
+             none         none          local
+# now if we look at these on our docker host machine using net-tools' "ifconfig", we see that the interfaces are named after the networks - a combo of the DRIVER and the NETWORKID
+ifconfig
+br-347625412ce: blah blah
+    inet 172.27.0.1 netmask 255.255.0.0 broadcast 172.27.255.255
+br-293743042ad: blah blah blah
+    inet 10.1.0.1 netmask 255.255.255.0 broadcast 10.1.0.255
+docker0: blah blah blah blah
+    inet 172.17.0.1 netmask 255.255.0.0 broadcast 172.17.255.255
+#  NOTE the ip address of the interface to netwk02 - it has one from the range specified for the subnet, not the next allocation from the 172.16-32 range...
+# remember the private IP address ranges:
+# Class A: 10.0. 0.0 to 10.255. 255.255.         10.  *.*.*
+# Class B: 172.16. 0.0 to 172.31. 255.255.      172. 16.*.*    to 171. 32.*.*
+# Class C: 192.168. 0.0 to 192.168. 255.255.    192.168.*.*
+# We can also create our networks with subnets and define gateways and IP ranges too
+docker network create  \
+--subnet 10.1.0.0/16   \
+--gateway=10.1.0.1     \
+--ip-range=10.1.4.0/24 \
+--driver=bridge        \
+--label=host4netwk     \
+mynetwk04
+# now that we have our network with a subnet and a defined ip range, we can create a container to go on it.
+# Last time we created the container then connected it to our network, this time we'll create teh container on the wnetwork directly with the "--network" flag...
+docker container run -it --name mycontainer04 --network mynetwk04 centos:latest /bin/bash
+# note we are runnign this intereactively rather than detached and we're dropping ourselves into the bash shell on a centos image that, if not already in the docker images on the host, will be downloaded firt from dockerhub
+# if we update centos and install net-tools so we can run ifconfig, we do so to see the following on the container
+ifconfig
+> eth0: blah blah
+>    inet 10.1.4.0 netmask 255.255.255.0 broadcast 10.1.0.255
+> lo:
+>    inet 127.0.0.1 netmask 255.0.0.0
+netstat -rn
+> Kernel IP routing information
+> Destination      Gateway     Genmask          Flags     MSS    Window      irtt   Iface
+> 0.0.0.0          10.1.0.1    0.0.0.0          UG        0      0           0      eth0
+> 10.1.0.0         0.0.0.0     255.255.0.0      U         0      0           0      eth0
+# note that the netstat command in this way is designedto looka t tha gateway information
+# we can also cat the resolv.conf file in our centos container we see that we're using the local namserver specified in docker
+cat /etc/resolv.conf
+>  search us-west-1.compute.internal mylabserver.com
+nameserver 127.0.0.11
+options ndots:0 
+# the other files that get mounted into the continer are /etc/host and /etc/hostname by docker via the bridge network
+# if we try to ping google.com we should find this revolves and DNS is working
+# we can also give container specific IP addresses if we want with the "--ip" flag
+# when grepping out from docker container inspect, look for "IPAddr"....
+# We can also create networks that are not bound to any of our existing interfaces by using the "--internal" flag
+docker network create -d bridge --internal myprivatenetwk
+# NOTE here we're using the normal "bridge" driver
+# next lets put a new container onto this "private" network
+docker container run -d --name test_mysql    \
+-e MYSQL_ROOT_PASSWORD=P4ssW0rd0!            \      ## NOTE that this is the standard root password for mysql in mysql docker images
+--network myprivatenetwk                     \
+mysql:5.7
+# note here by specifying the network it means we won't be using the bridge network
+# next we could create a container on the bridge network and show that we we can't ping test_mysql from it, stop it, add it to myprivatenk and then startandattachto it and show ping DOES then work
+docker container run -it --name ping-from-server --network bridge centos:latest
+exit
+docker network connect myprivatenetwk ping-from-server
+docker container start -ia ping-from-server                     ## "-ia" means we're going to start it "i" interactively (rather than detatched mode) and "a" attach to it
+ping test_mysql
+> PING test_mysql (172.18.0.2) 56 bytes of data
+64 bytes from test_mysql.localhost (172.18.0.2): icmp_seq=1 ttl=64 time=0.066 ms
+64 bytes from test_mysql.localhost (172.18.0.2): icmp_seq=1 ttl=64 time=0.079 ms
+64 bytes from test_mysql.localhost (172.18.0.2): icmp_seq=1 ttl=64 time=0.080 ms
+# we can also creatae a container and connect it only to the myprivatenetwork but map a port on it to the docker hosts port 80 and then try to curl to it
+docker container run -d --network myprivatenetwk -p 8081:80 --name my-private-nginx nginx:latest           ## -p is the port mapping from localhost:container
+ping localhost:8081
+> curl: (7) Failed to connect to localhost:8081; Connection refused
+# here when we curled to localhost 8081 the cnnection was refused because alothgoiuh the port is mapped correctly, the container isn't on an avaiable network that the docker host is on
+# HOWEVER - if we inspect the container we want to ping and use the private IP that the container has on myprivatenetwk, we can get a result back
+ping 172.28.0.3
+> <!DOCTYPE html>
+> load of other stuff on the index.html of the latest nginx image
+#
+# docker networking lab in course:
+# in this we create 2 networks and 2 containers
+# networks:
+#   - localhost      - private backend network
+#   - frontend       - front end network
+# containers
+#   - database       - sits on backend network only
+#   - frontend-app   - sits on both localhost network AND frontend network and talks to each via a differnt endpoint
+#
+# step 1: create the backend network
+docker network create frontend
+# step 2: create backend network
+docker network create --internal localhost
+# step 3: create and start ("run"?) database container
+docker container run -d --name database --network frontend -e MYSQL_ROOT_PASSWORD=P4SSw0rd0! mysql:5.7
+# step 4: create and start frontend application container
+docker container run -d --name frontend-app --network frontend nginx:latest
+# step 5: connect the frontend applicaiton to the back end network "localhost
+docker network connect localhost frontend-app
+# step 6: use docker container inspect to check that the frontend-app container is connected to both networks
+docker container inspect frontend-app | grep NetworkID
+>          "NetworkID": "9beacd766ec560aa05284118d4df9ecf1e74797704dd5ad12f27203452dfd838"
+>          "NetworkID": "17339c5b10aee57d1135ff756fec122549af0ecec1a8f58140215a1683d4553a"
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
