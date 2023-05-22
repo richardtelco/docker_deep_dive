@@ -1,0 +1,126 @@
+# Dockerfile is just a list of instructions saying how to build an image. It also contains the commands to use that image to start a container
+# Docker image consists of read only layers
+# Each layer represents a Dockerfile isntrcution (or should that be the other way around?)
+# Each layer creates a new image (albeit they are often deleted when the subsequent layer's image has been built)
+# Dockerfiles are using by the command
+docker image build
+# the -t flag supplies teh name and tag of the image this creates when built eg
+docker image build -t smartyworld/primes-app:v1 .        # This will use the file called Dockerfile in this current (".") ("dot") directory 
+# Examples docker file
+FROM ubuntu:15.04         # start with this ubuntu image
+COPY . /app               # get files from this place (.) on the docker host and copy into the /app directory in the container
+RUN make /app             # RUN just means to RUN some command in the container. In this case we're building the applicaiton using linux's "make" utility
+CMD python /app/app.py    # what to run when the container actually builds and starts (not list "RUN" which is run on the base image during the process of building an image)
+# GENERAL GUIDELINES
+# Keep containers as ephemeral as possible - ie be ready for them to be removed at the drop of a hat
+# Obey Twelve-Factor App item 6: Processes - Execute the app as a stateless process (or mulitple stateless processes). 
+#                                            This means prepare for it to be startable from nothing and for it to return to nothing
+#                                            http://12-factor.net
+# Void using unnecessary files (that "bloat" the image)
+# Use .dockerignore file - "don't copy these files to the image"...
+# Use Multistage build
+#      Image 1: Build image (includes tools to build and test the container image)
+#      Image 2: Run image   (just what you need to run the app in the container - ie don't need all the test tools for exmaple, maybe just teh binaries actually used)
+# Don't install unnecesary packages
+# Decouple what makes sense eg applicaiton and database
+# Sort multi=line arguments in alphabetical order so you can find things
+# Leverage the build cache - ie reuse other image layers that have previously been built elsewhere if you can. 
+#   - general tip - Run image isn't likely to need git installed but one of docker host of Build image might well need it!
+# Some of the main Dockerfile instructions:
+cat Dockerfile
+> # comment - this dockerfile will be used to create the smarty-app image which can then be used to start a smarty-app container
+> FROM node                             # start with the "node" image (nodejs)
+> LABEL com.smartyworld.version=v1.0    # this is metadata, usually based on the domain name in reverse
+> RUN mkdir -p /var/node                # can do all sorts of thing here if it exists on the container built from the image build up to (but excluding) this current layer
+> ADD src/ /var/node/                   # this copies files from dockerhost ./src/ to /var/node/ in the container. Similar to COPY instruction but can also add from urls (COPY cannot)
+> WORKDIR /var/node                     # (re)sets the working directory on the container for anything after RUN, CMD, ENTRYPOINT ,COPY, ADD
+> RUN npm install                       # note that this is now running from /var/node in the container from the "to date" image - so /var/node/npm
+> ENV KEY="value"
+> COPY files/ /var/node/filestouse/     # note similarities to ADD above
+> EXPOSE 3000                           # Tells Docker than the container listens on the specified network ports at (container) runtime. 
+>                                       # These are the ports that we therefore need to map into the docker hosts's ports that external traffic might come from
+> CMD ./bin/www                         # note that this is actually running /var/node/bin/www in the container at runtime
+>                                       # note that this is the default unless the docker container run says run something else instead...
+>                                       # can only be one of these per Dockerfile 
+# Other docker commands include ENTRYPOINT, VOLUME, USER, ARG, ONBUILD, HEALTHCHECK, SHELL
+#
+# Example:
+# Build a docker image
+docker image build -t smartyworld/primes-app:v1 ./Dockerfile 
+# ...and then run a container based on this image you've just built
+docker container run -d --name primes-app001 -p 8081:3000 smartyworld/primes-app:v1
+# Then we try to get a response from the app
+curl localhost:8081
+#
+# Environment variables
+# Twelve-Factor App principle 3: Store config in the environment (not in the code)
+# Consider this: config varies considerably over different deploys. Code does not. eg ports and urls might be different from dev deployments to prod deployments.
+# Environment variables are a good place to store this config in docker container environments
+# Environment variables can be defined in Dockerfile using ENV command, and then can be overridden by use of flag --env in the docker image build command  
+docker image build --env APIKEY="keyvalue456"         # standard key-value pair style (note an api key is likely to be differnt form dev to prod)
+docker image build --env DBNAME="primes.database.smartyworld.com"     # overirding ENV DBNAME="primes-dev.database.smartyworld.com" from the Dockerfile 
+# NOTE: in the abve example, Dockerfile might contain line
+ENV APIKEY="keyvalue123"
+# which would be the default value for that environment variable had the --env not been used at build time
+# Often it is easier to just have one development container and just "upgrade" things to "production" in the flags 
+# Environment variables can even be provided even later than that - at the "docker run" time also with an --env or -e flag.
+#
+# Build Arguments
+# The main difference between build arguments and env variables is when they are available. 
+# Build arguments get used at build time only and you can't see them in the running container or even in the built image.
+# they are kinda like environment variables, but they're variables available in the build environment, not the running container environment that you are trying to create!
+# However, similar to environment variables, you can define them in the Dockerfile
+> ARGS THING="default-value"
+# and then override them at build time
+docker image build --build-arg THING="overriding-value"
+# 
+# Working with non-privileged user
+# USER instruction in Dockerfile allows us to create a non-privileged user (default is to run and connect as root)
+# All instructions in the Dockerfile run after "USER" will be executed as that user
+# preceding the USER instruction we have to creat the user on the image which we do as a layer usually after FROM where we define the base layer 
+# It will look something like this
+RUN useradd -ms /bin/bash smartypants       # -m craetes a home directory for smartypants, -s specifies the login shell for smartypants
+USER smartypants
+# assuming I've used this Dockerfile to build a container image, to test this I might then run (create and start) the container interactively and run whoami
+docker container run -it --name primes-app-dev001 smartyworld/primes-app:v1
+#
+# Using the VOLUME instruction
+# This mounts a volume to the container so you can write out data during the execution of the container that will persist there (ie elsewhere)
+# The VOLUME sintrction can take a string or an array and it might look like this
+FROM nginx:latest
+VOLUME ["/usr/share/nginx/html/"]
+# put this is a file names Dockerfile and run...
+docker image build -t smartyworld/nginx:v0.1 .                # NOTE that the -t is for "tag" primarily but we are also naming it here as well. 
+#                                                             # Otherwise it gets given a farily horrible id by which to identify it
+# ...then once the image is built, create and start (ie "run") it
+docker container run -d --name nginx001 smartyworld/nginx:v0.1       # rememebr the -d means "detatched" state 
+# ...then look at it
+docker container inspect nginx001
+# and gerp for "Mounts" seciton, get the volume id and inspect the volume
+docker volume inspect 64ftr34hft85tdhtwfd3d7
+# and you can sudo ls -la the mountpoint to check any files you're expecting to be there are indeed there
+#
+# CMD and ENTRYPOINT
+# Generally, CMD is the default command that gets run on a container when its started. Its expected that it'll likely get overridden when someone does a docker cotnainer run (or start)
+#       CMD can run command with params and can be a long string or an array of ["command", "param1","param2","param3",....]
+# ENTRYPOINT is designed to be the main command that woudln't be cahnged and then CMD is used to set the parameters (or environment variables?)
+#       The ENTRYPOINT command can only be overridden suring docker run with the --entrypoint flag 
+# They can be used in conjunction with one another in the Dockerfile 
+FROM nginx:latest
+ENTRYPOINT ["/bin/prometheus"]
+CMD ["--config.file=/etc/prometheus.prometheus.yml" \
+     ",--storage.tsdb.path=/prometheus" \
+     ",--web.console.libraries=/usr/share/prometheus/console_libraries/" \
+     ]
+# Now if you want to override or append new flags, just write them at the end of the "docker container run" command and they own't bother the ENTRYPOINT command
+# They could overwrite a CMD if you use the same parameter name, or just append it if you use a new one not reocgnised in the CMD part of the Dockerfile
+# 
+# Using the .dockerignore file
+# Put this file in the same place as the Dockerfile by defaul (but it doesn't have to be there) and define files that you don't want copying into the container
+# A typical .dockerignore file might look like the following:
+>  # Ignore these files
+>  */*.md
+>  */.git
+>  src/docs 
+>  */tests/ 
+# This .dockerignore file will NOT copy anything from the docker host that fits these regex descriptions

@@ -1,0 +1,72 @@
+# Building images
+# we're already seen the basic 
+docker image build -t <NAME>:<TAG> .
+#  NOTE that 
+#      <NAME> is usually of the form <username>/<repository>  eg smartyworld/primes-app 
+#      <TAG>  is usually something like :v0.1 - but if you don't specify anything, it'll default to   :latest
+#      thus 
+docker image build -t smartyworld/primes-app:v1.0
+# Other flag that are useful to know are:
+#   -f,  --file-string     : Name of the Dockerfile (particularly if kept in a different place to the current working directory)
+#        --force-rm        : Always remove intermediate containers
+#        --rm              : Removes intermediate containers after a successful build 
+#        --label           : set metadata for an image eg   --label com.smartyworld.version=v1.5
+#        --ulimit          : ulimit options     fers to "user limits" and controls maximum memory consumption, CPU time, numbe rof processes etc          
+# We can also pipe a Dockerfile through stdin eg
+$ docker image build -t smartyworld/primes-app:stdintag --rm -<<EOF
+> FROM nginx:latest
+> VOLUME ["/usr/share/nginx/html/"]
+> EOF
+# We can also using remote urls (where Dockerfiles are hosted)- most commonly git
+#    docker image build -t <NAME>:<TAG> <GIT_URL>#<REF>                       # where <REF> can be a branch or a git tag 
+# Alternative method is to point at a directory on master branch
+#    docker image build -t <NAME>:<TAG> <GIT_URL>#:<DIRECTORY>                # where <DIRECTORY> is the subdirectory that the Dockerfile is in 
+# You can of course use BOTH at once
+#    docker image build -t <NAME>:<TAG> <GIT_URL>#<REF>:<DIRECTORY>
+# Final way is to use a tar file ("tape archive")
+#    docker image build -t <NAME>:<TAG> - < <FILE>.tar.gz
+#  NOTE that the TAR file should contain both the src directory with all the source code in it as well as the Dockerfile 
+# for example, assuming we have a tar file like this called primes-app.tar then;
+docker image build -t smartyworld/primes-app:from-tar-tag - < primes-app.tar.gz
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
