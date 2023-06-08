@@ -6,7 +6,7 @@ docker image build -t <NAME>:<TAG> .
 #      <TAG>  is usually something like :v0.1 - but if you don't specify anything, it'll default to   :latest
 #      thus 
 docker image build -t smartyworld/primes-app:v1.0
-# Other flag that are useful to know are:
+# Other flags that are useful to know are:
 #   -f,  --file-string     : Name of the Dockerfile (particularly if kept in a different place to the current working directory)
 #        --force-rm        : Always remove intermediate containers
 #        --rm              : Removes intermediate containers after a successful build 
@@ -29,44 +29,29 @@ $ docker image build -t smartyworld/primes-app:stdintag --rm -<<EOF
 # for example, assuming we have a tar file like this called primes-app.tar then;
 docker image build -t smartyworld/primes-app:from-tar-tag - < primes-app.tar.gz
 #
+# Multi stage builds
+# multiple images used to construct the final image, all in a single Dockerfile
+# "stages" are given integers by default (0, 1 ,2, ...) but they can be named in the FROM layer by writing:
+# FROM nginx as stagezeroname
+# It is common to make a first (zeroth) stage as the one that downloads the image and installs dependancies. 
+# The next one might use a smaller base image and only creates the aplpicaiton that does whatever it is you want to do   
+# Note that downloading code and dependancies required to build the final images aren't later required generally.
 #
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
+# Tagging images
+# Often best to 'tag' a docker image using a git commit hash of the version of the code in the repo that is in the build image...
+# ... and hence the one that will run when a container is created frm that image and started
+# You can also create new images with new tags based on an existing image with a different tag 
+# eg the image with tag 33610443205141594807 can be copied and tagged with tag "latest". We will redo this when we create a newer one after this
+# Good tagging is helpful when pushing your images to dockerhub
+# 
+# Distributing images on dockerhub
+# make sure you're logged into your docker application, whihc also logs you into dockerhub
+docker login
+# You can then push your images to dockerhub like something
+#     docker image push <USERNAME>/<IMAGE_NAME>:<TAG>
+docker image build smartyworld/primes-app:12664205120701     # note this is the commit hash
+# If we want to create a specific version of the docker image purely for dockerhub public sharing...
+#... we just give the image a new tag and push that new one
+docker image tab smartyworld/primes-app:12664205120701 smartyworld/primes-app:latest 
+# Note that the above code snippet assumes the dockerhub username is the same as the first part of the imagename (where by convention, we added the website name)
 #
