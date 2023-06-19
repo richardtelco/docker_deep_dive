@@ -1,0 +1,25 @@
+#
+#
+#
+#
+#
+# docker image command allows us to see how an image was built
+# including the layers - whether they can from:
+#    - the base image 
+#    - ...or the layers in the Dockerfile 
+docker image history node:latest
+# This will show us all the layers and what created them. Will inlcude those that created the base image as well as the ones that were added in the Dockerfile 
+# Can use --quiet flag to limit the output to just the imageids of the images that were created at each layer
+docker image history --quiet smartyworld/primes-app:12664205120701
+#
+# Might also want to export an image to a tar file (if you want to avoid public repos)
+# Use docker image save command...
+docker image save smartyworld/primes-app:latest --output primes-app-latest.tar
+# note to remember - we can look at hte contents of the tarfile using tar command
+tar tvf primes-app-latest.tar
+gzip primes-app-latest.tar
+# can also load in the image from a tar file using docker image load command
+docker image load --input primes-app-latest.tar.gz 
+#
+#
+#

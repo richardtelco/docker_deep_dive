@@ -39,7 +39,7 @@ docker image build -t smartyworld/primes-app:from-tar-tag - < primes-app.tar.gz
 #
 # Tagging images
 # Often best to 'tag' a docker image using a git commit hash of the version of the code in the repo that is in the build image...
-# ... and hence the one that will run when a container is created frm that image and started
+# ... and hence the one that will run when a container is created from that image and started
 # You can also create new images with new tags based on an existing image with a different tag 
 # eg the image with tag 33610443205141594807 can be copied and tagged with tag "latest". We will redo this when we create a newer one after this
 # Good tagging is helpful when pushing your images to dockerhub
