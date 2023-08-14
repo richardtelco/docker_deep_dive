@@ -1,38 +1,64 @@
+# we can inspect running processes on a container in 2 main ways:
+#  1. docker container top (from docker host)
+#  2. attach to the container and run top directly in the container
+# Note than in 2. - if we "attach" to a container already running a bash shell we only see the existing on, 
+# but if we exec a new one and drop into it, we see the new one plus the original one that was likely set to run when the dcontainer was originally started/run. 
+# An alternative to docker container top is docker container stats
+#
+# restart policies for containers (in the event that the docker service stops or is rebooted)
+# default restart policy is that containers will NOT restart (ie --restart=no)
+# NOTE: This is not the restart policy for other events eg Container is stopped directly itself. Its about the docker SERVICE overall.
+# Other restart policy config options:
+#  --restart no                # this will never restart
+#  --restart on-failure        # if an error is encountereed - in the form on a non-zero exit code
+#  --restart always            # always restart the container after the docker service has been restarted
+#  --restart unless-stopped    # always restart the container after the docker service has been restarted unless the container was manually/deliberately stopped itself
+#
+# docker events - getting real time event data about containers
+# Note that these can be accessed via the api rather than the docker command line if that method is preferred. Often it's more convenient in practice
+# This command will just list all events happening from the time the command is run
+docker container events
+# we can filter these to something we're more interested in, as well as get historical one for certain periods
+docker system events --filter type=container --since '1h'
+# this (above) is called the container "object type"
+# we can filter on event types as well - and not just one type but mulitple at the same time eg
+docker system events --filter event=attach --filter event=die --filter event=stop
 # 
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
+# listing containers so we can "manage" them - this filters by those that are 'exited' (ie stopped)
+docker container ls -a -f status=exited
+# we can just list the container ids (running and stopped in the below case) with the -q (quiet) flag - this is good for entering directly into a script
+docker container ls -a -q 
+# we can docker rm all the stopped containers using "prune"
+docker container prune
+# 
+# portainer - tool for helping users manage docker containers, docker swarm and even kubernetes clusters
+# Provides a GUI and lets you do all the stuff the docker command line allows you to do
+# you can run portainer in a container in your docker service, 
+# restart it "always" so its forever available when docker service is running
+# map it to a volume (so its got persistent storage available to it)
+# map it to a port on localhost so that you can access so you can access the GUI being served by the "portainer" image you'll get from dockerhub) and then 
+# and you're off!
+# first create the volume for the persistent data:
+docker volume create portainer_data
+# then run the container which docker will get from dockerhub, as follows
+docker container run -d \
+   --name portainer \
+   -p 8080:9000 \
+   --restart=always \
+   -v /var/run/docker.sock:/var/run/docker.sock \
+   -v portainer_data:/data \
+   portainer/portainer    # username/imagename?
+# 
+# watchtower - monitors running containers and can update containers as/if images change
+# kinda handy if thats the way you want to run your CI/CD process - ie deploy automatically once the new image is pushed to the image repository
+# This may not be the case though...?
+# As with portainer above, watchtower can be run as a container on your dockerhost itself
+docker run -d \
+   --name watchtower \
+   --erstart always \
+   -v /var/run/docker.sock:/var/run/docker.sock \
+   v2tec/watchtower -i 15
+# the last -i 15 means the interval owber which new versions of the image are checked for is 15 seconds.
 #
 #
 #
