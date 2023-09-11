@@ -48,7 +48,8 @@ docker-compose down                                            ## delete a compo
 # services generally represent different containers that comprise the services. eg if app consists of 3 containers, then you;d have 3 services
 # Within each "container" service there are "properties" that further describe the service 
 # Common properties that most 'services' ("microservices") have are:
-#   - image:          # the image that the docker will use for this microservices  
+#   - image:          # the image that the docker will use for this microservices 
+#   - container_name: # if we want to rename the container to something more memorable that whatever the default is going to be 
 #   - ports:          # the ports to expose on the container 
 #   - environment:    # environmnet variables to set in the docker container environment 
 #
