@@ -1,0 +1,71 @@
+# docker compose is used for managing mulitple docker containers that form an application
+# It allows you to define a set that work together and to deploy the whole set together rather than having to remember which combos work together
+# and then carefully remembering to keep coordinated versions of each one in place at any one time
+# 
+# Need to download docker compose before you can use it - its not part of docker automatically
+# first fetch the code from github
+sudo curl -L "https://github.com/docker/compose/releases/download/1.23.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+# Once downloadedthe release you want into that directory, we need to make the files executable and check the version
+sudo chmod +x /usr/local/bin/docker-compose
+docker-compose --version
+# docker-compose has a large number of commands similar to those of docker. See them with
+docker-compose -h 
+# docker-compose needs a config file whihc you can keep wherever - which you might do in your project folder, then /compose/commands
+mkdir -p ./compose/commands
+# the docker-compose file, traditionally a yaml file, might look something like this:
+cat docker-compose.yml
+  > version: '3'
+  > services:
+  >   web:
+  >     image: nginx 
+  >     ports:
+  >     - "8080:80"
+  >     volumes:
+  >     - nginx_html:/usr/share/nginx/html/
+  >     links:
+  >     - redis
+  >   redis:
+  >     image: redis
+  > volumes:
+  >   nginx.html: {}
+# next we simply run docker-compose either in the same dir as the docker-compose.yml file, or -f and link to it - with the docker-compose command AFTER the f switch
+docker-compose -f ./compose/commands/docker-compose.yml ps     ## list the containers created by compose
+docker-compose up -d                                           ## create a compose service
+docker-compose start                                           ## start a compose service
+docker-compose stop                                            ## stop a compose service
+docker compose restart                                         ## restart a compose service
+docker-compose down                                            ## delete a compose service 
+# docker-compose files can be yaml or json format
+# don't have to call them docker-compose.yml / .json, but if you don't you need ot use the -f flag 
+# there are 4 kinds of "top level" keys:
+#  - version     # this used to be mandatory and ties to docker engine version we're using - see https://docs.docker.com/compose/compose-file/
+#  - services
+#  - networks    # 
+#  - volumes     # only needed for volumes not already created by docker in Dockerfile - docker-compose will manage these extra ones
+#  - configs
+#  - secrets
+# version refers to the version of the docker-compose.yml file you are using 
+# services generally represent different containers that comprise the services. eg if app consists of 3 containers, then you;d have 3 services
+# Within each "container" service there are "properties" that further describe the service 
+# Common properties that most 'services' ("microservices") have are:
+#   - image:          # the image that the docker will use for this microservices  
+#   - ports:          # the ports to expose on the container 
+#   - environment:    # environmnet variables to set in the docker container environment 
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
