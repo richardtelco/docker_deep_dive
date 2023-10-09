@@ -74,6 +74,95 @@ docker service scale nginx_service=3
 docker service update -h     # -h flag means "help" - and lists all the options
 # for examples we can update environment variables, add or remove mounts etc.
 # To hit the service, we can't hit localhost - we have to hit either the public or private IPs...
+# DOCKER NETWORKS
+# The overlay network used by docker swarm is an "overlay" ontop of the networks between the hosts and enables nodes to communciate with one another
+# This network is usually called "ingress" (the default one if you don't specify something else)
+# HOwever you CAN specify your own "overlay" network, and ensure it's encrypted with the encrypted flag
+# Start by creating the network
+docker network create \
+  --driver overlay \
+  --opt encrypted
+  encrypted_overlay
+# its easier to create the network first, then specify it when creating the swarm service
+# This is very much like the above docker service create line (line55) but with the network flag:
+docker service create -d --name nginx_overlay --network encrypted_network -p 8080:80 --replicas 2 nginx:latest
+# DOCKER VOLUMES
+# Volumes are local to your docker host - so although you can create volumes on the nodes all tasks are hosted on...
+# ... the data on them will be different. This doesn't really work so....
+# need to use "plugins".
+# And example plugin might be to have docker write its logs to a splunk index. To isntall the docker splunk plugin, we can:
+docker plugin install splunk/docker-logging-plugin splunk/docker-logging-plugin
+# to get a list of all the plugins you;ve got installed
+docker plugins ls
+# you can disable them - but you need to use the pluginid rather than that pluginname - whihc you got from docker plugin ls 
+# docker plugin disable [PLUGINID]
+# To use a shared docker volume, on something non-local, we can use a docker plugin called rexray/ebs (rexray is the company and plugin...
+# ... ebs is Elastic Block Store - an amazon web services product that provide block storage)
+# you;d install it in the following way:
+docker plugin install rexray/ebs EBS_ACCESSKEY=w7463trf3dh4 EBS_SECRETKEY=8764crf387f34
+# If you want to supply the region, that could be done
+# First create a normal local volume on the master/manager node
+docker volume create -d local portainer_data        # -d is the same as --driver (storage "Driver" for the 'volume')
+# This volume won't appear on other hosts running containers that form part of the swarm. 
+# When we create a volume used by the (swarm) service, we can't use the volume flag (cos tahts local only), so we have to use "mount" instead.
+docker service create \
+--name portainer \
+--publish 8000:9000 \
+--constraint 'node.role == manager' \
+--mount type=volume,src=portainer_data,dst=/data \
+--mount type=bind,src=/var/run.docker.sock,dst=/var/run/docker.sock \
+portainer/portainer \
+-H unix:///var/run.docker.sock 
+# the portainer service you created will be able tos ee the swarm service you just created!
+# DEPLOYING STACKS
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
 # 
 # 
 # 
