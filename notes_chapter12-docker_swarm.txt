@@ -1,0 +1,95 @@
+# How can we scale our containers?
+# 2 components: 
+#  - swarm cluster (1 or more docker 'nodes' - first one is a 'manager' node)
+#  - orchestration engine
+# docker swarm features
+#  - encrypted traffic between nodes and secure join tokens between manager and worker nodes
+#  - an API
+#  - a manifest file so you can 'declare' your swarm dimensions/configs/componentry
+#  - methods for 
+#    - update
+#    - rollback
+#    - scale 
+# docker swarm became a part of docker in v1.12
+# Manager nodes
+#   - manages state of cluster
+#   - sends tasks to workers nodes
+# managernode:/etcd/ is where the docker swarm state is kept (and is kept very up to date)
+# docker swarm is arguably more secure than docker on its own so you may want to run docker using swarm all the time - even if its only 1 container you want!
+# Atromic unit of scheduling a docker swarm is a "swarm service"
+# Docker swarm services adds to a docker container service..:
+#  - scaling
+#  - rolling updates
+#  - rollback
+# When a docker container is "wrapped in a docker swarm service", its usually called a "task" or a "replica". 
+# 
+# imagine setting up a docker swarm with 3 nodes (virtual machines) - one allocated to be manager and the other two allocated as worker nodes  
+# all three are running docker
+# Go to manager node and run:
+docker swarm init --advertise-addr 172.28.28.103        # that IP address is the one the manager node will be listening for API calls on....
+#                                                         ...as well as the one other nodes will use to talk to it. Also the 'overlay' network
+# Next we get the docker command to run on the worker nodes to "join the manager's swarm"
+# We need ot use the PRIVATE IP to join ,and generally the port 2377.
+# It'll look something like this: (might need to precede with "sudo")
+docker swarm join --token SWMTKN-1-hsefkvsbufsbgvkuybgscknr 172.28.28.103:2377
+# if you can't see it, execute the following
+docker swarm join-token worker      # this get the command to run on a node that we want to become a worker 
+# When done, go back to swarm manager node and check what's joined your swarm...
+docker node ls 
+# This should now list the two other nodes
+# Next we can get info about a specific node
+docker node inspect hostname.mynetwork.com        # could also use nodeid rather than hostname
+# This shows things like the docker engine version its running, the platform its running on, the OS, the cert its using and the node status (eg active)
+# Workers can be promoted by the manager.... and demoted again later
+docker node promote hostname2.mynetwork.com     # this is now a manager node 
+docker node demote hostname2.mynetwork.com      # this is back to being a worker node 
+docker node rm -f hostname2.mynetwork.com       # this removes the node from the swarm from the managers' perspective....
+#                                                 ...but the hode itself doesn't yet realise - so we need to go to it and tell it to leave
+ssh user@hostname2.mynetwork.com
+docker swarm leave  
+# Now its just back to being a lonesome docker host. If we want it back in the swarm we need to do a docker swarm join again.
+# Note that docker nodes can join the swarm as managers directly (rather than as workers, then get promoted)
+# NEXT: Working with (docker swarm) services
+# when you want o deplay an applicaiton on docker swarm, you deploy it as a 'service'...
+# to create a 'service', run something like the following:
+docker service create -d --name nginx_service -p 8080:80 --replicas 2 nginx:latest
+# NOTE the critical new tag - "--replicas". This time the docker service "mode" is called "replicated" - but otherwise it looks like a normal docker service 
+# the service will create 'tasks' on available worker nodes...
+# and run 'n' "replicas" (of the docker container, as docker containers) on the available worker node population
+# It will also load balance the traffic to these containers
+# As with normal containers, we can inspect the service
+docker service inspect nginx_service 
+# You can observe the network on which the docket hosts communicate by grepping for "networkid" from teh output of the service inspect
+# Then you can look up that networkid in the docker network ls:
+docker network ls | grep 871346r38742680       # where 871346r38742680 is the networkid quoted in the service
+# This will show that the DRIVER=overlay and SCOPE=swarm
+# you can also get the los of the service
+docker service logs nginx_service
+# We can list the tasks of a service
+docker service ps nginx_service
+# We can also scale up the number of tasks in the service whilst its running
+docker service scale nginx_service=3
+# after this we can lists the tastks again with docker service ps
+# We can also update other things on the service whilst its running. There are many. See what theya re by:
+docker service update -h     # -h flag means "help" - and lists all the options
+# for examples we can update environment variables, add or remove mounts etc.
+# To hit the service, we can't hit localhost - we have to hit either the public or private IPs...
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
