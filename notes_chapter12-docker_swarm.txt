@@ -16,7 +16,7 @@
 #   - sends tasks to workers nodes
 # managernode:/etcd/ is where the docker swarm state is kept (and is kept very up to date)
 # docker swarm is arguably more secure than docker on its own so you may want to run docker using swarm all the time - even if its only 1 container you want!
-# Atromic unit of scheduling a docker swarm is a "swarm service"
+# Atomic unit of scheduling a docker swarm is a "swarm service"
 # Docker swarm services adds to a docker container service..:
 #  - scaling
 #  - rolling updates
@@ -29,7 +29,7 @@
 docker swarm init --advertise-addr 172.28.28.103        # that IP address is the one the manager node will be listening for API calls on....
 #                                                         ...as well as the one other nodes will use to talk to it. Also the 'overlay' network
 # Next we get the docker command to run on the worker nodes to "join the manager's swarm"
-# We need ot use the PRIVATE IP to join ,and generally the port 2377.
+# We need to use the PRIVATE IP to join ,and generally the port 2377.
 # It'll look something like this: (might need to precede with "sudo")
 docker swarm join --token SWMTKN-1-hsefkvsbufsbgvkuybgscknr 172.28.28.103:2377
 # if you can't see it, execute the following
@@ -50,7 +50,7 @@ docker swarm leave
 # Now its just back to being a lonesome docker host. If we want it back in the swarm we need to do a docker swarm join again.
 # Note that docker nodes can join the swarm as managers directly (rather than as workers, then get promoted)
 # NEXT: Working with (docker swarm) services
-# when you want o deplay an applicaiton on docker swarm, you deploy it as a 'service'...
+# when you want to deploy an applicaiton on docker swarm, you deploy it as a 'service'...
 # to create a 'service', run something like the following:
 docker service create -d --name nginx_service -p 8080:80 --replicas 2 nginx:latest
 # NOTE the critical new tag - "--replicas". This time the docker service "mode" is called "replicated" - but otherwise it looks like a normal docker service 
@@ -63,21 +63,21 @@ docker service inspect nginx_service
 # Then you can look up that networkid in the docker network ls:
 docker network ls | grep 871346r38742680       # where 871346r38742680 is the networkid quoted in the service
 # This will show that the DRIVER=overlay and SCOPE=swarm
-# you can also get the los of the service
+# you can also get the logs of the service
 docker service logs nginx_service
 # We can list the tasks of a service
 docker service ps nginx_service
 # We can also scale up the number of tasks in the service whilst its running
 docker service scale nginx_service=3
 # after this we can lists the tastks again with docker service ps
-# We can also update other things on the service whilst its running. There are many. See what theya re by:
+# We can also update other things on the service whilst its running. There are many. See what they are by:
 docker service update -h     # -h flag means "help" - and lists all the options
-# for examples we can update environment variables, add or remove mounts etc.
+# for example we can update environment variables, add or remove mounts etc.
 # To hit the service, we can't hit localhost - we have to hit either the public or private IPs...
 # DOCKER NETWORKS
 # The overlay network used by docker swarm is an "overlay" ontop of the networks between the hosts and enables nodes to communciate with one another
 # This network is usually called "ingress" (the default one if you don't specify something else)
-# HOwever you CAN specify your own "overlay" network, and ensure it's encrypted with the encrypted flag
+# However you CAN specify your own "overlay" network, and ensure it's encrypted with the encrypted flag
 # Start by creating the network
 docker network create \
   --driver overlay \
@@ -94,7 +94,7 @@ docker service create -d --name nginx_overlay --network encrypted_network -p 808
 docker plugin install splunk/docker-logging-plugin splunk/docker-logging-plugin
 # to get a list of all the plugins you;ve got installed
 docker plugins ls
-# you can disable them - but you need to use the pluginid rather than that pluginname - whihc you got from docker plugin ls 
+# you can disable them - but you need to use the pluginid rather than that pluginname - which you got from docker plugin ls 
 # docker plugin disable [PLUGINID]
 # To use a shared docker volume, on something non-local, we can use a docker plugin called rexray/ebs (rexray is the company and plugin...
 # ... ebs is Elastic Block Store - an amazon web services product that provide block storage)
