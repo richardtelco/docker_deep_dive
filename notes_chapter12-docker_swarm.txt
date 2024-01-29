@@ -22,7 +22,8 @@
 #  - rolling updates
 #  - rollback
 # When a docker container is "wrapped in a docker swarm service", its usually called a "task" or a "replica". 
-# 
+
+## Docker swarm nodes 
 # imagine setting up a docker swarm with 3 nodes (virtual machines) - one allocated to be manager and the other two allocated as worker nodes  
 # all three are running docker
 # Go to manager node and run:
@@ -33,7 +34,7 @@ docker swarm init --advertise-addr 172.28.28.103        # that IP address is the
 # It'll look something like this: (might need to precede with "sudo")
 docker swarm join --token SWMTKN-1-hsefkvsbufsbgvkuybgscknr 172.28.28.103:2377
 # if you can't see it, execute the following
-docker swarm join-token worker      # this get the command to run on a node that we want to become a worker 
+docker swarm join-token worker      # this gives the command you need to run on a node that we want to become a worker node 
 # When done, go back to swarm manager node and check what's joined your swarm...
 docker node ls 
 # This should now list the two other nodes
@@ -49,13 +50,14 @@ ssh user@hostname2.mynetwork.com
 docker swarm leave  
 # Now its just back to being a lonesome docker host. If we want it back in the swarm we need to do a docker swarm join again.
 # Note that docker nodes can join the swarm as managers directly (rather than as workers, then get promoted)
-# NEXT: Working with (docker swarm) services
+
+## Docker swarm services
 # when you want to deploy an applicaiton on docker swarm, you deploy it as a 'service'...
 # to create a 'service', run something like the following:
 docker service create -d --name nginx_service -p 8080:80 --replicas 2 nginx:latest
-# NOTE the critical new tag - "--replicas". This time the docker service "mode" is called "replicated" - but otherwise it looks like a normal docker service 
-# the service will create 'tasks' on available worker nodes...
-# and run 'n' "replicas" (of the docker container, as docker containers) on the available worker node population
+# NOTE the critical new tag - "--replicas". This time the docker service "mode" is called "replicated" - but otherwise it looks like a normal docker service. However I think the "mode=replicated" means it's using docker swarm 
+# the service will create 'tasks' running on available worker nodes which themselves create containers on those worker nodes to be part of the "swarm"...
+# The service runs 'n' "replicas" (of the docker container, as docker containers) on the available worker node population
 # It will also load balance the traffic to these containers
 # As with normal containers, we can inspect the service
 docker service inspect nginx_service 
@@ -74,10 +76,12 @@ docker service scale nginx_service=3
 docker service update -h     # -h flag means "help" - and lists all the options
 # for example we can update environment variables, add or remove mounts etc.
 # To hit the service, we can't hit localhost - we have to hit either the public or private IPs...
-# DOCKER NETWORKS
+
+## Docker swarm networks
 # The overlay network used by docker swarm is an "overlay" ontop of the networks between the hosts and enables nodes to communciate with one another
-# This network is usually called "ingress" (the default one if you don't specify something else)
-# However you CAN specify your own "overlay" network, and ensure it's encrypted with the encrypted flag
+# note that this creates a network with a network driver called 'overlay'. This is different from the network that was previously created when mulitple containers were created on the same host machine. When those containers were isolated on a docker network on the one host machine, that network driver was called 'bridge' and was just bridging containers on the same host using a 'network'.
+# This overlay network is usually called "ingress" (the default one if you don't specify something else)
+# However you CAN specify your own "overlay" network, and ensure it's encrypted on the network the hosts are being isolated on, with the encrypted flag
 # Start by creating the network
 docker network create \
   --driver overlay \
@@ -86,7 +90,8 @@ docker network create \
 # its easier to create the network first, then specify it when creating the swarm service
 # This is very much like the above docker service create line (line55) but with the network flag:
 docker service create -d --name nginx_overlay --network encrypted_network -p 8080:80 --replicas 2 nginx:latest
-# DOCKER VOLUMES
+
+# DOCKER VOLUMES with swarm
 # Volumes are local to your docker host - so although you can create volumes on the nodes all tasks are hosted on...
 # ... the data on them will be different. This doesn't really work so....
 # need to use "plugins".
@@ -114,22 +119,68 @@ docker service create \
 portainer/portainer \
 -H unix:///var/run.docker.sock 
 # the portainer service you created will be able tos ee the swarm service you just created!
-# DEPLOYING STACKS
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
+
+# DEPLOYING STACKS in docker swarm
+# Stacks lets you deploy out a complete application in your swarm environment
+# we use a compose file to define the stack
+# So think of using docker compose, but this time with docker swarm rather than just docker in single node form 
+# start by creating a config file (.yml)
+# In this file we'd do various things like
+#  - the version of the docker compose file (minimum v3 for docker swarm)
+#  - the docker container images that the applicaiton needs to run
+#  - container run flags when that container need to be run
+#  - volumes the containers need to connect to / mount 
+#  - dependencies - if containers need to load in specific orders
+# note that the "deploy" attribute of a docker compose file is ONLY interpretted by docker swarm - it means nothing to docker 
+# container info like "how many replicas" are required
+# its alsways worth looking at the docker files for the images you;re going to be using. 
+# When we have completed our docker compose file we need to deploy the stack. We do this something like this:
+docker stack deploy --compose-file docker-compose.yml mystack
+# Then we can see what stacks we have deployed and running:
+docker stack ls
+# we can also ps to list the task replicas across the service (remember tasks run individual containers)
+docker stack ps mystack 
+# removing stacks is fairly expected
+docker stack rm mystack
+# below is an example docker compose file for deploying a stack for wordpress
+version: '3'
+
+services:
+   db:
+     image: mysql:5.7
+     volumes:
+       - db_data:/var/lib/mysql
+     networks:
+       mysql_internal:
+         aliases: ["db"]
+     environment:
+       MYSQL_ROOT_PASSWORD: P4ssw0rd0!
+       MYSQL_DATABASE: wordpress
+       MYSQL_USER: wordpress
+       MYSQL_PASSWORD: P4ssw0rd0!
+
+   blog:
+     depends_on:
+       - db
+     image: wordpress:latest
+     networks:
+       mysql_internal:
+       wordpress_public:
+     ports:
+       - "80:80"
+     environment:
+       WORDPRESS_DB_HOST: db:3306
+       WORDPRESS_DB_USER: wordpress
+       WORDPRESS_DB_PASSWORD: P4ssw0rd0!
+
+volumes:
+    db_data:
+networks:
+  mysql_internal:
+    internal: true
+  wordpress_public:
+
+## Docker Security
 # 
 # 
 # 
